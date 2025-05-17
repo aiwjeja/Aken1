@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VGA TECH - Player</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0; padding: 0; background: #000; color: #00ff00;
+      font-family: 'Share Tech Mono', monospace;
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; background-size: cover; background-position: center;
+    }
+    #login, #player { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; }
+    #login.active, #player.active { display: flex; }
+    input[type="text"] {
+      padding: 10px; font-size: 16px; border: 2px solid #00ff00;
+      border-radius: 6px; background: #000; color: #00ff00;
+      margin-bottom: 10px; width: 250px;
+    }
+    button {
+      padding: 10px 20px; font-size: 16px; border: 2px solid #00ff00;
+      background: #000; color: #00ff00; border-radius: 6px;
+      cursor: pointer; margin: 5px;
+      transition: background 0.3s, color 0.3s;
+    }
+    button:hover { background: #00ff00; color: #000; }
+    .lcd {
+      width: 360px; height: 60px; background: #000;
+      border: 2px solid #00ff00; border-radius: 8px;
+      box-shadow: inset 0 0 15px #00ff00;
+      display: flex; align-items: center; justify-content: center;
+      margin: 20px 0; font-size: 18px;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
+    .controls, .speed-controls {
+      display: flex; gap: 10px; margin-bottom: 15px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .file-inputs {
+      display: flex; flex-direction: column; gap: 10px; align-items: center;
+    }
+    .file-inputs label {
+      color: #00ff00; font-size: 14px;
+    }
+    .file-inputs input {
+      border: 1px solid #00ff00;
+      background: #000; color: #00ff00;
+      padding: 6px 12px; border-radius: 6px;
+    }
+    audio { display: none; }
+    #error { color: red; margin-top: 10px; }
+    #sceneInfo { font-size: 24px; margin-bottom: 10px; }
+    .flash-green { background-color: #00ff00 !important; color: #000 !important; }
+    .flash-red { background-color: red !important; color: #fff !important; }
+    .flash-blue { background-color: #007bff !important; color: #fff !important; }
+    .flash-reset { background-color: #000 !important; color: #00ff00 !important; }
+  </style>
+</head>
+<body>
+
+<div id="login" class="active">
+  <h2>Masukkan Kode Voucher</h2>
+  <input type="text" id="voucherInput" placeholder="Contoh: ABC123" />
+  <button onclick="login()">Masuk</button>
+  <div id="error"></div>
+</div>
+
+<div id="player">
+  <h1>VGA TECH</h1>
+  <div id="sceneInfo">NOMOR : 1 - 100</div>
+  <div class="lcd" id="lcdDisplay">Tidak ada audio</div>
+
+  <div class="controls">
+    <button id="prev" onclick="prevScene()">◀ Prev</button>
+    <button id="play" onclick="playAudio()">▶ Play</button>
+    <button id="stop" onclick="stopAudio()">■ Stop</button>
+    <button id="next" onclick="nextScene()">Next ▶</button>
+  </div>
+
+  <div class="speed-controls">
+    <button onclick="slower()">- Speed</button>
+    <button onclick="faster()">+ Speed</button>
+    <button onclick="renameAudio()">GANTI NAMA BASURI</button>
+  </div>
+
+  <div class="file-inputs">
+    <label for="bgInput">GANTI BACKGROUND</label>
+    <input type="file" id="bgInput" accept="image/*" />
+    <label for="audioInput">PILIH BASURI DARI FILE ANDA</label>
+    <input type="file" id="audioInput" accept="audio/*" />
+  </div>
+
+  <audio id="audioPlayer"></audio>
+</div>
+
+<script>
+  const voucherList = ["ABC123", "XYZ789", "WCR001"];
+  const totalScenes = 100;
+  let currentScene = 1;
+  let playbackRate = 1.0;
+  let isPlaying = false;
+  const scenes = Array.from({ length: totalScenes }, () => ({ bg: null, audio: null, name: null }));
+
+  const sceneInfo = document.getElementById("sceneInfo");
+  const lcdDisplay = document.getElementById("lcdDisplay");
+  const audioPlayer = document.getElementById("audioPlayer");
+
+  function login() {
+    const input = document.getElementById("voucherInput").value.trim();
+    if (voucherList.includes(input)) {
+      document.getElementById("login").classList.remove("active");
+      document.getElementById("player").classList.add("active");
+      updateScene();
+    } else {
+      document.getElementById("error").textContent = "Kode voucher salah!";
+    }
+  }
+
+  function updateScene() {
+    const scene = scenes[currentScene - 1];
+    sceneInfo.textContent = `NOMOR : ${currentScene} - ${totalScenes}`;
+    lcdDisplay.textContent = scene.name || "Tidak ada audio";
+    if (scene.bg) {
+      document.body.style.backgroundImage = `url('${scene.bg}')`;
+    }
+  }
+
+  function playAudio() {
+    flashButton("play", "green");
+    const scene = scenes[currentScene - 1];
+    if (scene.audio) {
+      audioPlayer.src = scene.audio;
+      audioPlayer.playbackRate = playbackRate;
+      audioPlayer.play();
+      isPlaying = true;
+      lcdTemporary("PLAY");
+    }
+  }
+
+  function stopAudio() {
+    flashButton("stop", "red");
+    audioPlayer.pause();
+    isPlaying = false;
+    lcdTemporary("STOP");
+  }
+
+  function nextScene() {
+    flashButton("next", "blue");
+    currentScene = currentScene < totalScenes ? currentScene + 1 : 1;
+    isPlaying = false;
+    audioPlayer.pause();
+    updateScene();
+  }
+
+  function prevScene() {
+    flashButton("prev", "blue");
+    currentScene = currentScene > 1 ? currentScene - 1 : totalScenes;
+    isPlaying = false;
+    audioPlayer.pause();
+    updateScene();
+  }
+
+  function slower() {
+    playbackRate = Math.max(0.5, playbackRate - 0.1);
+    audioPlayer.playbackRate = playbackRate;
+    lcdTemporary(`Speed: ${playbackRate.toFixed(1)}x`);
+  }
+
+  function faster() {
+    playbackRate = Math.min(2.0, playbackRate + 0.1);
+    audioPlayer.playbackRate = playbackRate;
+    lcdTemporary(`Speed: ${playbackRate.toFixed(1)}x`);
+  }
+
+  function lcdTemporary(text) {
+    const scene = scenes[currentScene - 1];
+    lcdDisplay.textContent = text;
+    setTimeout(() => {
+      lcdDisplay.textContent = scene.name || "Tidak ada audio";
+    }, 500);
+  }
+
+  function flashButton(id, color) {
+    const btn = document.getElementById(id);
+    const flashClass = `flash-${color}`;
+    btn.classList.add(flashClass);
+    setTimeout(() => {
+      btn.classList.remove(flashClass);
+      btn.classList.add("flash-reset");
+      setTimeout(() => {
+        btn.classList.remove("flash-reset");
+      }, 100);
+    }, 500);
+  }
+
+  function renameAudio() {
+    const scene = scenes[currentScene - 1];
+    const newName = prompt("Ganti nama Basuri (max 30 karakter):", scene.name || "");
+    if (newName !== null) {
+      scene.name = newName.slice(0, 30);
+      lcdDisplay.textContent = scene.name || "Tidak ada audio";
+    }
+  }
+
+  document.getElementById("bgInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      scenes[currentScene - 1].bg = url;
+      updateScene();
+    }
+  });
+
+  document.getElementById("audioInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      scenes[currentScene - 1].audio = url;
+      scenes[currentScene - 1].name = file.name;
+      updateScene();
+    }
+  });
+</script>
+
+</body>
+</html>
