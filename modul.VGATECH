@@ -128,9 +128,9 @@
     </div>
     <div class="file-inputs">
       <label for="bgInput">GANTI BACKGROUND</label>
-      <input type="file" id="bgInput" accept="image/*">
+      <input type="file" id="bgInput">
       <label for="audioInput">PILIH BASURI DARI FILE ANDA</label>
-      <input type="file" id="audioInput" accept="audio/*">
+      <input type="file" id="audioInput">
     </div>
     <audio id="audioPlayer"></audio>
   </div>
@@ -149,18 +149,19 @@
     let playbackRate = 1.0;
     let isPlaying = false;
 
-    // Simpan semua data scene supaya background & audio tetap sesuai setiap nomor tanpa hilang
-    const scenes = Array.from({ length: totalScenes }, () => ({ bg: null, audio: null, name: null }));
+    // Simpan hanya audio dan name agar background tidak berubah saat pindah scene kecuali diganti manual
+    const scenes = Array.from({ length: totalScenes }, () => ({ audio: null, name: null }));
 
     const sceneInfo = document.getElementById("sceneInfo");
     const lcdDisplay = document.getElementById("lcdDisplay");
     const audioPlayer = document.getElementById("audioPlayer");
+    const bgInput = document.getElementById("bgInput");
+    const audioInput = document.getElementById("audioInput");
 
-    // Cek akses login dan masa berlaku voucher
     function checkAccess() {
       const expiry = localStorage.getItem("voucher_expiry");
       if (expiry) {
-        const now = Date.now();
+        const now = new Date().getTime();
         if (now < parseInt(expiry)) {
           document.getElementById("login").classList.remove("active");
           document.getElementById("player").classList.add("active");
@@ -173,14 +174,12 @@
       }
     }
 
-    // Login dengan kode voucher valid
     function login() {
       const input = document.getElementById("voucherInput").value.trim().toUpperCase();
       if (voucherList.includes(input)) {
-        const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 hari
+        const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 hari
         localStorage.setItem("voucher_expiry", expiry.toString());
-        document.getElementById("error").textContent = "";
-        document.getElementById("expiredNotice").style.display = "none";
+        // langsung tampil player tanpa reload
         document.getElementById("login").classList.remove("active");
         document.getElementById("player").classList.add("active");
         updateScene();
@@ -189,26 +188,13 @@
       }
     }
 
-    // Update info dan tampilan scene sekarang
     function updateScene() {
       const scene = scenes[currentScene - 1];
       sceneInfo.textContent = `NOMOR : ${currentScene} - ${totalScenes}`;
       lcdDisplay.textContent = scene.name || "Tidak ada audio";
-      if (scene.bg) {
-        document.body.style.backgroundImage = `url('${scene.bg}')`;
-      } else {
-        document.body.style.backgroundImage = "";
-      }
-      if (isPlaying && scene.audio) {
-        audioPlayer.src = scene.audio;
-        audioPlayer.playbackRate = playbackRate;
-        audioPlayer.play();
-      } else {
-        audioPlayer.pause();
-      }
+      // Background tidak berubah otomatis saat ganti scene
     }
 
-    // Tombol play audio
     function playAudio() {
       flashButton("play", "green");
       const scene = scenes[currentScene - 1];
@@ -221,7 +207,6 @@
       }
     }
 
-    // Tombol stop audio
     function stopAudio() {
       flashButton("stop", "red");
       audioPlayer.pause();
@@ -229,7 +214,6 @@
       lcdTemporary("STOP");
     }
 
-    // Tombol next scene, looping 100->1
     function nextScene() {
       flashButton("next", "blue");
       currentScene = currentScene < totalScenes ? currentScene + 1 : 1;
@@ -238,7 +222,6 @@
       updateScene();
     }
 
-    // Tombol prev scene, looping 1->100
     function prevScene() {
       flashButton("prev", "blue");
       currentScene = currentScene > 1 ? currentScene - 1 : totalScenes;
@@ -247,21 +230,18 @@
       updateScene();
     }
 
-    // Percepat playback audio
-    function faster() {
-      playbackRate = Math.min(2.0, playbackRate + 0.1);
-      audioPlayer.playbackRate = playbackRate;
-      lcdTemporary(`Speed: ${playbackRate.toFixed(1)}x`);
-    }
-
-    // Perlambat playback audio
     function slower() {
       playbackRate = Math.max(0.5, playbackRate - 0.1);
       audioPlayer.playbackRate = playbackRate;
       lcdTemporary(`Speed: ${playbackRate.toFixed(1)}x`);
     }
 
-    // Tampilkan teks di LCD sementara
+    function faster() {
+      playbackRate = Math.min(2.0, playbackRate + 0.1);
+      audioPlayer.playbackRate = playbackRate;
+      lcdTemporary(`Speed: ${playbackRate.toFixed(1)}x`);
+    }
+
     function lcdTemporary(text) {
       const scene = scenes[currentScene - 1];
       lcdDisplay.textContent = text;
@@ -270,7 +250,6 @@
       }, 500);
     }
 
-    // Animasi flash tombol
     function flashButton(id, color) {
       const btn = document.getElementById(id);
       const flashClass = `flash-${color}`;
@@ -278,11 +257,12 @@
       setTimeout(() => {
         btn.classList.remove(flashClass);
         btn.classList.add("flash-reset");
-        setTimeout(() => btn.classList.remove("flash-reset"), 100);
+        setTimeout(() => {
+          btn.classList.remove("flash-reset");
+        }, 100);
       }, 500);
     }
 
-    // Ganti nama audio Basuri
     function renameAudio() {
       const scene = scenes[currentScene - 1];
       const newName = prompt("Ganti nama Basuri (max 30 karakter):", scene.name || "");
@@ -292,18 +272,17 @@
       }
     }
 
-    // Event ganti background, simpan URL di scene sekarang
-    document.getElementById("bgInput").addEventListener("change", (e) => {
+    bgInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
         const url = URL.createObjectURL(file);
-        scenes[currentScene - 1].bg = url;
-        updateScene();
+        document.body.style.backgroundImage = `url('${url}')`;
+        // Tidak disimpan di scenes agar bg tidak berubah saat pindah scene
       }
+      e.target.value = null; // reset input supaya bisa pilih file sama lagi
     });
 
-    // Event ganti audio, simpan URL dan nama file di scene sekarang
-    document.getElementById("audioInput").addEventListener("change", (e) => {
+    audioInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
         const url = URL.createObjectURL(file);
@@ -311,9 +290,10 @@
         scenes[currentScene - 1].name = file.name;
         updateScene();
       }
+      e.target.value = null;
     });
 
-    // Mulai cek akses voucher saat halaman siap
+    // cek akses voucher saat load
     checkAccess();
   </script>
 </body>
