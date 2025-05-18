@@ -3,7 +3,6 @@
 <head>
   <title>VGA TECH</title>
   <style>
-    /* style sama persis dengan yang kamu kasih, tidak diubah */
     * { box-sizing: border-box; user-select: none; }
     body {
       margin: 0;
@@ -149,9 +148,7 @@
     let currentScene = 1;
     let playbackRate = 1.0;
     let isPlaying = false;
-    const scenes = Array.from({ length: totalScenes }, () => ({ audio: null, name: null }));
-    let globalBg = null;
-
+    const scenes = Array.from({ length: totalScenes }, () => ({ bg: null, audio: null, name: null }));
     const sceneInfo = document.getElementById("sceneInfo");
     const lcdDisplay = document.getElementById("lcdDisplay");
     const audioPlayer = document.getElementById("audioPlayer");
@@ -186,8 +183,8 @@
       const scene = scenes[currentScene - 1];
       sceneInfo.textContent = `NOMOR : ${currentScene} - ${totalScenes}`;
       lcdDisplay.textContent = scene.name || "Tidak ada audio";
-      if (globalBg) {
-        document.body.style.backgroundImage = `url('${globalBg}')`;
+      if (scene.bg) {
+        document.body.style.backgroundImage = `url('${scene.bg}')`;
       } else {
         document.body.style.backgroundImage = '';
       }
@@ -214,7 +211,7 @@
 
     function nextScene() {
       flashButton("next", "blue");
-      currentScene = currentScene < totalScenes ? currentScene + 1 : 1;
+      currentScene = (currentScene % totalScenes) + 1; // dari 100 ke 1
       isPlaying = false;
       audioPlayer.pause();
       updateScene();
@@ -222,7 +219,7 @@
 
     function prevScene() {
       flashButton("prev", "blue");
-      currentScene = currentScene > 1 ? currentScene - 1 : totalScenes;
+      currentScene = (currentScene - 2 + totalScenes) % totalScenes + 1; // dari 1 ke 100
       isPlaying = false;
       audioPlayer.pause();
       updateScene();
@@ -273,8 +270,9 @@
     document.getElementById("bgInput").addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
-        globalBg = URL.createObjectURL(file);
-        document.body.style.backgroundImage = `url('${globalBg}')`;
+        const url = URL.createObjectURL(file);
+        scenes[currentScene - 1].bg = url;
+        updateScene();
       }
     });
 
