@@ -3,6 +3,7 @@
 <head>
   <title>VGA TECH</title>
   <style>
+    /* style sama persis dengan yang kamu kasih, tidak diubah */
     * { box-sizing: border-box; user-select: none; }
     body {
       margin: 0;
@@ -148,7 +149,9 @@
     let currentScene = 1;
     let playbackRate = 1.0;
     let isPlaying = false;
-    const scenes = Array.from({ length: totalScenes }, () => ({ bg: null, audio: null, name: null }));
+    const scenes = Array.from({ length: totalScenes }, () => ({ audio: null, name: null }));
+    let globalBg = null;
+
     const sceneInfo = document.getElementById("sceneInfo");
     const lcdDisplay = document.getElementById("lcdDisplay");
     const audioPlayer = document.getElementById("audioPlayer");
@@ -158,16 +161,12 @@
       if (expiry) {
         const now = new Date().getTime();
         if (now < parseInt(expiry)) {
-          // Voucher valid
           document.getElementById("login").classList.remove("active");
           document.getElementById("player").classList.add("active");
           updateScene();
         } else {
-          // Voucher expired
           localStorage.removeItem("voucher_expiry");
           document.getElementById("expiredNotice").style.display = "block";
-          document.getElementById("login").classList.add("active");
-          document.getElementById("player").classList.remove("active");
         }
       }
     }
@@ -175,14 +174,9 @@
     function login() {
       const input = document.getElementById("voucherInput").value.trim().toUpperCase();
       if (voucherList.includes(input)) {
-        const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 hari
+        const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
         localStorage.setItem("voucher_expiry", expiry.toString());
-        // Langsung ke player tanpa reload
-        document.getElementById("login").classList.remove("active");
-        document.getElementById("player").classList.add("active");
-        updateScene();
-        document.getElementById("error").textContent = "";
-        document.getElementById("expiredNotice").style.display = "none";
+        location.reload();
       } else {
         document.getElementById("error").textContent = "Kode voucher salah!";
       }
@@ -192,10 +186,10 @@
       const scene = scenes[currentScene - 1];
       sceneInfo.textContent = `NOMOR : ${currentScene} - ${totalScenes}`;
       lcdDisplay.textContent = scene.name || "Tidak ada audio";
-      if (scene.bg) {
-        document.body.style.backgroundImage = `url('${scene.bg}')`;
+      if (globalBg) {
+        document.body.style.backgroundImage = `url('${globalBg}')`;
       } else {
-        document.body.style.backgroundImage = "";
+        document.body.style.backgroundImage = '';
       }
     }
 
@@ -256,7 +250,6 @@
 
     function flashButton(id, color) {
       const btn = document.getElementById(id);
-      if (!btn) return;
       const flashClass = `flash-${color}`;
       btn.classList.add(flashClass);
       setTimeout(() => {
@@ -280,9 +273,8 @@
     document.getElementById("bgInput").addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
-        const url = URL.createObjectURL(file);
-        scenes[currentScene - 1].bg = url;
-        updateScene();
+        globalBg = URL.createObjectURL(file);
+        document.body.style.backgroundImage = `url('${globalBg}')`;
       }
     });
 
@@ -296,8 +288,7 @@
       }
     });
 
-    // Cek akses voucher saat halaman dimuat
-    window.onload = checkAccess;
+    checkAccess();
   </script>
 </body>
-  </html>
+</html>
